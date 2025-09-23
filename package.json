@@ -1,0 +1,37 @@
+{
+  "name": "forethought-testing-agent",
+  "version": "1.0.0",
+  "description": "Local testing agent for Forethought intents, actions, and conversation flows",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run backend:dev\" \"npm run frontend:dev\"",
+    "backend:dev": "cd backend && npm run dev",
+    "frontend:dev": "cd frontend && npm run dev",
+    "build": "npm run backend:build && npm run frontend:build",
+    "backend:build": "cd backend && npm run build",
+    "frontend:build": "cd frontend && npm run build",
+    "test": "npm run backend:test && npm run frontend:test",
+    "backend:test": "cd backend && npm test",
+    "frontend:test": "cd frontend && npm test",
+    "setup": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "start": "npm run backend:start",
+    "backend:start": "cd backend && npm start"
+  },
+  "keywords": [
+    "forethought",
+    "testing",
+    "support",
+    "chatbot",
+    "llm",
+    "conversation"
+  ],
+  "author": "Brandt Clawson",
+  "license": "N/A",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ]
+}
