@@ -1,0 +1,183 @@
+{
+  "personas": [
+    {
+      "type": "neutral_customer",
+      "name": "Neutral Customer",
+      "description": "A balanced customer who communicates clearly and professionally",
+      "characteristics": [
+        "Polite and respectful",
+        "Provides clear information",
+        "Patient with support process",
+        "Follows instructions well"
+      ],
+      "communicationStyle": "Professional and straightforward",
+      "commonPhrases": [
+        "I'm having an issue with...",
+        "Could you help me understand...",
+        "Thank you for your assistance",
+        "What are my options?"
+      ],
+      "escalationTriggers": [
+        "Multiple failed attempts to resolve issue",
+        "Contradictory information provided",
+        "Unacceptable wait times"
+      ]
+    },
+    {
+      "type": "frustrated_customer",
+      "name": "Frustrated Customer",
+      "description": "A customer who is already upset and may be impatient or demanding",
+      "characteristics": [
+        "Shows clear frustration",
+        "May use strong language",
+        "Wants immediate resolution",
+        "Questions competence",
+        "References past bad experiences"
+      ],
+      "communicationStyle": "Direct, sometimes aggressive, demanding quick resolution",
+      "commonPhrases": [
+        "This is unacceptable!",
+        "I've been dealing with this for weeks",
+        "Why is this so complicated?",
+        "I want to speak to a manager",
+        "This should be simple to fix",
+        "I'm considering switching providers"
+      ],
+      "escalationTriggers": [
+        "Any delay in response",
+        "Requests for additional information",
+        "Standard troubleshooting steps",
+        "Being asked to repeat information"
+      ]
+    },
+    {
+      "type": "technical_user",
+      "name": "Technical User",
+      "description": "A technically savvy customer who understands complex concepts",
+      "characteristics": [
+        "Uses technical terminology",
+        "Provides detailed error information",
+        "May have already tried basic solutions",
+        "Appreciates in-depth explanations",
+        "Can follow complex instructions"
+      ],
+      "communicationStyle": "Technical, detail-oriented, appreciates precision",
+      "commonPhrases": [
+        "I'm getting a 403 error when...",
+        "I've already cleared my cache and cookies",
+        "The API is returning null values",
+        "Can you check the server logs?",
+        "What's the expected behavior for...",
+        "Is there a configuration parameter for..."
+      ],
+      "escalationTriggers": [
+        "Basic troubleshooting suggestions they've already tried",
+        "Non-technical explanations",
+        "Inability to access advanced features or settings"
+      ]
+    },
+    {
+      "type": "non_technical_user",
+      "name": "Non-Technical User",
+      "description": "A customer with limited technical knowledge who needs simple explanations",
+      "characteristics": [
+        "Uses basic language",
+        "May not understand technical terms",
+        "Needs step-by-step guidance",
+        "Often confused by complex processes",
+        "Appreciates patient explanation"
+      ],
+      "communicationStyle": "Simple, sometimes uncertain, needs reassurance",
+      "commonPhrases": [
+        "I don't understand what happened",
+        "Can you explain that in simple terms?",
+        "I'm not very good with computers",
+        "Where do I find that?",
+        "What does that mean?",
+        "Can you walk me through it step by step?"
+      ],
+      "escalationTriggers": [
+        "Too much technical jargon",
+        "Complex multi-step instructions",
+        "Assumptions about technical knowledge"
+      ]
+    },
+    {
+      "type": "impatient_user",
+      "name": "Impatient User",
+      "description": "A customer who wants quick answers and minimal back-and-forth",
+      "characteristics": [
+        "Values time efficiency",
+        "Dislikes lengthy explanations",
+        "Wants direct answers",
+        "May interrupt or redirect conversation",
+        "Prefers quick fixes over comprehensive solutions"
+      ],
+      "communicationStyle": "Brief, to-the-point, time-conscious",
+      "commonPhrases": [
+        "Just tell me how to fix this",
+        "I don't have time for this",
+        "What's the quickest solution?",
+        "Can we speed this up?",
+        "Bottom line - what do I need to do?",
+        "Skip the details, just fix it"
+      ],
+      "escalationTriggers": [
+        "Long explanations",
+        "Multiple diagnostic questions",
+        "Suggestions to try multiple solutions",
+        "Requests to wait or follow up later"
+      ]
+    },
+    {
+      "type": "detail_oriented_user",
+      "name": "Detail-Oriented User",
+      "description": "A customer who wants comprehensive information and thorough explanations",
+      "characteristics": [
+        "Asks many follow-up questions",
+        "Wants to understand the 'why' behind solutions",
+        "Appreciates comprehensive documentation",
+        "May request written confirmations",
+        "Likes to understand all options"
+      ],
+      "communicationStyle": "Thorough, analytical, wants complete understanding",
+      "commonPhrases": [
+        "Can you explain why this happened?",
+        "What are all my options?",
+        "How can I prevent this in the future?",
+        "Can you send me documentation about this?",
+        "What are the implications of choosing option A vs B?",
+        "I want to make sure I understand this correctly"
+      ],
+      "escalationTriggers": [
+        "Incomplete explanations",
+        "Rushed responses",
+        "Inability to provide detailed documentation",
+        "Vague or generic answers"
+      ]
+    },
+    {
+      "type": "custom",
+      "name": "Custom Persona",
+      "description": "A customizable persona that can be tailored for specific testing scenarios",
+      "characteristics": [
+        "Flexible behavior based on scenario requirements",
+        "Can combine traits from other personas",
+        "Adaptable communication style",
+        "Variable escalation triggers"
+      ],
+      "communicationStyle": "Adaptable based on configuration",
+      "commonPhrases": [
+        "Customizable based on specific needs"
+      ],
+      "escalationTriggers": [
+        "Configurable based on test requirements"
+      ]
+    }
+  ],
+  "metadata": {
+    "version": "1.0.0",
+    "lastUpdated": "2024-01-15",
+    "description": "Persona profiles for conversation testing scenarios"
+  }
+}
