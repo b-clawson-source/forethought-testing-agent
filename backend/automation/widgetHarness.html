@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Forethought Widget Harness</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Keep the body empty; the script will inject the widget -->
+  </head>
+  <body>
+    <!-- The runner will fill these at runtime -->
+    <script id="widget-loader">
+      (function init() {
+        const s = document.createElement('script');
+        s.src = "https://solve-widget.forethought.ai/embed.js";
+        s.id = "forethought-widget-embed-script";
+
+        // Required
+        s.setAttribute("data-api-key", "__API_KEY__"); // << injected
+
+        // Optional context – injected from runner/persona at runtime
+        // Any missing value is simply omitted
+        const ctx = __WIDGET_CONTEXT__; // << injected (JSON object)
+
+        for (const [k, v] of Object.entries(ctx || {})) {
+          if (v !== undefined && v !== null && String(v).length > 0) {
+            s.setAttribute(k, String(v));
+          }
+        }
+
+        document.body.appendChild(s);
+      })();
+    </script>
+  </body>
+</html>

@@ -10,9 +10,17 @@
     "dev": "npm run backend:dev"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "@types/compression": "^1.8.1",
+    "@types/cors": "^2.8.19",
+    "@types/morgan": "^1.9.10",
+    "concurrently": "^8.2.2",
+    "playwright": "^1.55.1",
+    "tsx": "^4.20.5"
   },
   "workspaces": [
     "backend"
-  ]
+  ],
+  "dependencies": {
+    "openai": "^5.23.0"
+  }
 }
