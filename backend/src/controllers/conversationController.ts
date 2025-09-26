@@ -1,181 +1,398 @@
 import { Request, Response } from 'express';
-import { ConversationEngine } from '../services/conversationEngine';
-import { PersonaType } from '../../shared/types/conversation';
+import { ForethoughtService } from '../services/forethoughtService';
+import OpenAI from 'openai';
 
-const conversationEngine = ConversationEngine.getInstance();
+// Initialize services
+const forethoughtService = new ForethoughtService();
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Store active conversations
+const activeConversations = new Map();
 
 export class ConversationController {
-  public static async startConversation(req: Request, res: Response): Promise<void> {
+  
+  /**
+   * Handle message in conversation - THIS IS THE KEY ENDPOINT TO FIX
+   */
+  static async sendMessage(req: Request, res: Response) {
     try {
-      const { initialPrompt, persona, configuration } = req.body;
+      const { message, sessionId } = req.body;
 
-      if (!initialPrompt || !persona) {
-        res.status(400).json({
-          success: false,
-          error: 'initialPrompt and persona are required'
+      if (!message) {
+        return res.status(400).json({
+          error: 'Message is required'
         });
-        return;
       }
 
-      console.log(`Starting conversation: ${persona} - ${initialPrompt.substring(0, 50)}...`);
+      const currentSessionId = sessionId || `session-${Date.now()}`;
 
-      const session = await conversationEngine.startConversation(
-        initialPrompt,
-        persona as PersonaType,
-        configuration
-      );
+      console.log(`[CONVERSATION] Incoming message: "${message}"`);
 
-      res.status(201).json({
-        success: true,
-        data: {
-          session: {
-            id: session.id,
-            initialPrompt: session.initialPrompt,
-            persona: session.persona,
-            status: session.status,
-            startTime: session.startTime,
-            configuration: session.configuration,
-            messageCount: session.messages.length
-          }
-        }
-      });
-    } catch (error: any) {
-      console.error('Failed to start conversation:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message
-      });
-    }
-  }
-
-  public static async getConversation(req: Request, res: Response): Promise<void> {
-    try {
-      const { sessionId } = req.params;
+      // Get response from REAL Forethought service (not mock)
+      const forethoughtResponse = await forethoughtService.sendMessage(message, currentSessionId);
       
-      const session = await conversationEngine.getSession(sessionId);
-      if (!session) {
-        res.status(404).json({
-          success: false,
-          error: 'Conversation not found'
+      console.log(`[CONVERSATION] Forethought response: "${forethoughtResponse.response}"`);
+      console.log(`[CONVERSATION] Intent: ${forethoughtResponse.intent} (${forethoughtResponse.confidence}% confidence)`);
+
+      // Store conversation in memory
+      if (!activeConversations.has(currentSessionId)) {
+        activeConversations.set(currentSessionId, {
+          sessionId: currentSessionId,
+          messages: [],
+          startTime: new Date()
         });
-        return;
       }
 
-      res.json({
-        success: true,
-        data: {
-          session: {
-            ...session,
-            messageCount: session.messages.length,
-            duration: session.endTime 
-              ? session.endTime.getTime() - session.startTime.getTime()
-              : Date.now() - session.startTime.getTime()
-          }
-        }
-      });
-    } catch (error: any) {
-      console.error('Failed to get conversation:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message
-      });
-    }
-  }
-
-  public static async getAllConversations(req: Request, res: Response): Promise<void> {
-    try {
-      const limit = parseInt(req.query.limit as string) || 20;
-      const sessions = await conversationEngine.getAllSessions(limit);
-
-      const sessionsWithSummary = sessions.map(session => ({
-        id: session.id,
-        initialPrompt: session.initialPrompt.substring(0, 100) + (session.initialPrompt.length > 100 ? '...' : ''),
-        persona: session.persona,
-        status: session.status,
-        startTime: session.startTime,
-        endTime: session.endTime,
-        messageCount: session.messages.length,
-        duration: session.endTime 
-          ? session.endTime.getTime() - session.startTime.getTime()
-          : Date.now() - session.startTime.getTime(),
-        analysisScore: session.analysis?.conversationQuality || null
-      }));
-
-      res.json({
-        success: true,
-        data: {
-          sessions: sessionsWithSummary,
-          total: sessions.length
-        }
-      });
-    } catch (error: any) {
-      console.error('Failed to get conversations:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message
-      });
-    }
-  }
-
-  public static async getConversationMessages(req: Request, res: Response): Promise<void> {
-    try {
-      const { sessionId } = req.params;
+      const conversation = activeConversations.get(currentSessionId);
       
-      const session = await conversationEngine.getSession(sessionId);
-      if (!session) {
-        res.status(404).json({
-          success: false,
-          error: 'Conversation not found'
+      // Add customer message
+      conversation.messages.push({
+        role: 'user',
+        content: message,
+        timestamp: new Date()
+      });
+
+      // Add agent response
+      conversation.messages.push({
+        role: 'assistant',
+        content: forethoughtResponse.response,
+        timestamp: new Date(),
+        metadata: {
+          intent: forethoughtResponse.intent,
+          confidence: forethoughtResponse.confidence,
+          suggestedActions: forethoughtResponse.suggestedActions,
+          knowledgeBaseArticles: forethoughtResponse.knowledgeBaseArticles
+        }
+      });
+
+      // Return response in the format your system expects
+      res.json({
+        success: true,
+        response: forethoughtResponse.response,
+        message: forethoughtResponse.response, // For backward compatibility
+        intent: forethoughtResponse.intent,
+        confidence: forethoughtResponse.confidence,
+        sessionId: currentSessionId,
+        suggestedActions: forethoughtResponse.suggestedActions,
+        knowledgeBaseArticles: forethoughtResponse.knowledgeBaseArticles,
+        conversationLength: conversation.messages.length
+      });
+
+    } catch (error) {
+      console.error('[CONVERSATION] Error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to process message',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Start freeform conversation with OpenAI customer simulation
+   */
+  static async startFreeformConversation(req: Request, res: Response) {
+    try {
+      const { query, maxTurns = 10, persona = 'polite' } = req.body;
+
+      if (!query) {
+        return res.status(400).json({
+          error: 'Initial query is required'
         });
-        return;
       }
 
-      res.json({
-        success: true,
-        data: {
-          messages: session.messages,
-          total: session.messages.length
-        }
-      });
-    } catch (error: any) {
-      console.error('Failed to get messages:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message
-      });
-    }
-  }
-
-  public static async getStats(req: Request, res: Response): Promise<void> {
-    try {
-      const sessions = await conversationEngine.getAllSessions(100);
-      const activeSessionIds = conversationEngine.getActiveSessionIds();
-      
-      const stats = {
-        active: activeSessionIds.length,
-        total: sessions.length,
-        completed: sessions.filter(s => s.status === 'completed').length,
-        failed: sessions.filter(s => s.status === 'failed').length,
-        averageMessages: sessions.length > 0 
-          ? sessions.reduce((sum, s) => sum + s.messages.length, 0) / sessions.length 
-          : 0,
-        byPersona: {} as Record<string, number>
+      const conversationId = `freeform-${Date.now()}`;
+      let currentMessage = query;
+      let turnCount = 0;
+      const conversation = {
+        id: conversationId,
+        messages: [],
+        resolved: false,
+        persona
       };
 
-      // Count by persona
-      sessions.forEach(session => {
-        stats.byPersona[session.persona] = (stats.byPersona[session.persona] || 0) + 1;
-      });
+      console.log(`[FREEFORM] Starting conversation with persona: ${persona}`);
+      console.log(`[FREEFORM] Initial query: "${query}"`);
+
+      while (turnCount < maxTurns) {
+        turnCount++;
+
+        // Customer message
+        conversation.messages.push({
+          role: 'user',
+          content: currentMessage,
+          timestamp: new Date(),
+          turn: turnCount
+        });
+
+        console.log(`[FREEFORM] Turn ${turnCount} - Customer: "${currentMessage}"`);
+
+        // Get REAL Forethought response
+        const forethoughtResponse = await forethoughtService.sendMessage(currentMessage, conversationId);
+        
+        console.log(`[FREEFORM] Turn ${turnCount} - Agent: "${forethoughtResponse.response}"`);
+        console.log(`[FREEFORM] Intent: ${forethoughtResponse.intent} (${forethoughtResponse.confidence}% confidence)`);
+
+        // Agent response
+        conversation.messages.push({
+          role: 'assistant',
+          content: forethoughtResponse.response,
+          timestamp: new Date(),
+          turn: turnCount,
+          metadata: {
+            intent: forethoughtResponse.intent,
+            confidence: forethoughtResponse.confidence,
+            suggestedActions: forethoughtResponse.suggestedActions
+          }
+        });
+
+        // Check if conversation should end (customer satisfaction)
+        const shouldEnd = await ConversationController.shouldEndConversation(
+          conversation.messages,
+          persona
+        );
+
+        if (shouldEnd.shouldEnd) {
+          conversation.resolved = shouldEnd.resolved;
+          console.log(`[FREEFORM] Conversation ended: ${shouldEnd.reason}`);
+          break;
+        }
+
+        // Generate next customer message using OpenAI
+        currentMessage = await ConversationController.generateCustomerResponse(
+          conversation.messages,
+          persona,
+          forethoughtResponse.response
+        );
+
+        if (!currentMessage) {
+          console.log(`[FREEFORM] Customer ended conversation (no response generated)`);
+          conversation.resolved = true;
+          break;
+        }
+      }
+
+      // Store conversation
+      activeConversations.set(conversationId, conversation);
 
       res.json({
         success: true,
-        data: { stats }
+        conversationId,
+        totalTurns: conversation.messages.length,
+        resolved: conversation.resolved,
+        messages: conversation.messages,
+        summary: {
+          persona,
+          turns: Math.ceil(conversation.messages.length / 2),
+          resolved: conversation.resolved,
+          finalIntent: conversation.messages[conversation.messages.length - 1]?.metadata?.intent
+        }
       });
-    } catch (error: any) {
-      console.error('Failed to get stats:', error);
+
+    } catch (error) {
+      console.error('[FREEFORM] Error:', error);
+      res.status(500).json({
+        error: 'Failed to start freeform conversation',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Generate customer response using OpenAI
+   */
+  static async generateCustomerResponse(
+    messages: any[],
+    persona: string,
+    lastAgentResponse: string
+  ): Promise<string> {
+    
+    if (!process.env.OPENAI_API_KEY) {
+      // Fallback responses for different personas
+      const fallbackResponses = {
+        frustrated: ["This is taking too long!", "I need this fixed now!", "This is ridiculous!"],
+        confused: ["I don't understand", "Can you explain that better?", "What does that mean?"],
+        polite: ["Thank you for your help", "I appreciate your assistance", "That makes sense"],
+        impatient: ["Just tell me how to fix it", "I don't have time for this", "Give me the quick solution"],
+        technical: ["What's the root cause?", "Can you provide more technical details?", "Is this a known issue?"]
+      };
+      
+      const responses = fallbackResponses[persona as keyof typeof fallbackResponses] || fallbackResponses.polite;
+      return responses[Math.floor(Math.random() * responses.length)];
+    }
+
+    try {
+      const conversationContext = messages
+        .slice(-6) // Last 3 exchanges
+        .map(m => `${m.role === 'user' ? 'Customer' : 'Agent'}: ${m.content}`)
+        .join('\n');
+
+      const personaDescriptions = {
+        frustrated: "You are a frustrated customer who has been dealing with this issue for a while. You're impatient and want quick solutions.",
+        confused: "You are a confused customer who doesn't understand technical terms. You ask clarifying questions and need simple explanations.",
+        polite: "You are a polite, courteous customer. You're patient and appreciative of help.",
+        impatient: "You are a busy customer who wants quick solutions without long explanations.",
+        technical: "You are a tech-savvy customer who understands technical details and wants specific information."
+      };
+
+      const prompt = `${personaDescriptions[persona as keyof typeof personaDescriptions] || personaDescriptions.polite}
+
+Recent conversation:
+${conversationContext}
+
+Agent just said: "${lastAgentResponse}"
+
+Generate your next realistic response as a customer. Your response should:
+1. Match your persona (${persona})
+2. Respond appropriately to what the agent said
+3. Either continue the conversation if not satisfied, or thank them if the issue seems resolved
+4. Be 1-2 sentences maximum
+5. Sound like a real customer would speak
+
+If the agent provided a good solution and you're satisfied, express thanks and indicate the issue is resolved.
+If not satisfied, continue asking questions or expressing concerns appropriate to your persona.
+
+Customer response:`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 150,
+        temperature: 0.7,
+      });
+
+      const response = completion.choices[0]?.message?.content?.trim() || '';
+      
+      // Don't continue if customer seems satisfied
+      if (response.toLowerCase().includes('thank') && 
+          (response.toLowerCase().includes('help') || response.toLowerCase().includes('resolve'))) {
+        return '';
+      }
+
+      return response;
+
+    } catch (error) {
+      console.error('[OPENAI] Error generating customer response:', error);
+      return ''; // End conversation on error
+    }
+  }
+
+  /**
+   * Determine if conversation should end
+   */
+  static async shouldEndConversation(
+    messages: any[],
+    persona: string
+  ): Promise<{ shouldEnd: boolean; resolved: boolean; reason: string }> {
+    
+    const lastCustomerMessage = messages
+      .filter(m => m.role === 'user')
+      .pop()?.content?.toLowerCase() || '';
+
+    const lastAgentMessage = messages
+      .filter(m => m.role === 'assistant')  
+      .pop()?.content?.toLowerCase() || '';
+
+    // Check for satisfaction indicators
+    if (lastCustomerMessage.includes('thank') && 
+        (lastCustomerMessage.includes('help') || lastCustomerMessage.includes('resolve'))) {
+      return { shouldEnd: true, resolved: true, reason: 'Customer expressed satisfaction' };
+    }
+
+    // Check for resolution indicators in agent response
+    if (lastAgentMessage.includes('resolved') || 
+        lastAgentMessage.includes('completed') ||
+        lastAgentMessage.includes('fixed')) {
+      return { shouldEnd: false, resolved: false, reason: 'Continue to confirm resolution' };
+    }
+
+    // Persona-specific ending conditions
+    if (persona === 'frustrated' && messages.length > 8) {
+      return { shouldEnd: true, resolved: false, reason: 'Frustrated customer patience expired' };
+    }
+
+    if (persona === 'impatient' && messages.length > 6) {
+      return { shouldEnd: true, resolved: false, reason: 'Impatient customer gave up' };
+    }
+
+    // General conversation length limits
+    if (messages.length > 16) {
+      return { shouldEnd: true, resolved: false, reason: 'Maximum conversation length reached' };
+    }
+
+    return { shouldEnd: false, resolved: false, reason: 'Continue conversation' };
+  }
+
+  /**
+   * Get conversation by session ID
+   */
+  static async getConversation(req: Request, res: Response) {
+    try {
+      const { sessionId } = req.params;
+
+      const conversation = activeConversations.get(sessionId);
+      if (!conversation) {
+        return res.status(404).json({
+          error: 'Conversation not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        conversation
+      });
+
+    } catch (error) {
+      console.error('[CONVERSATION] Get conversation error:', error);
+      res.status(500).json({
+        error: 'Failed to get conversation'
+      });
+    }
+  }
+
+  /**
+   * Get all conversations
+   */
+  static async getConversations(req: Request, res: Response) {
+    try {
+      const conversations = Array.from(activeConversations.values());
+
+      res.json({
+        success: true,
+        conversations,
+        total: conversations.length
+      });
+
+    } catch (error) {
+      console.error('[CONVERSATION] Get conversations error:', error);
+      res.status(500).json({
+        error: 'Failed to get conversations'
+      });
+    }
+  }
+
+  /**
+   * Test Forethought connectivity
+   */
+  static async testForethought(req: Request, res: Response) {
+    try {
+      console.log('[TEST] Testing Forethought connectivity...');
+      
+      const testResult = await forethoughtService.testConnectivity();
+      
+      res.json({
+        success: testResult.success,
+        ...testResult
+      });
+
+    } catch (error) {
+      console.error('[TEST] Forethought test error:', error);
       res.status(500).json({
         success: false,
-        error: error.message
+        error: 'Forethought test failed',
+        details: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   }

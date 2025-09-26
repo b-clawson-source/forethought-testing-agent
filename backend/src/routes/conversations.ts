@@ -1,21 +1,36 @@
-import express from 'express';
+import { Router } from 'express';
 import { ConversationController } from '../controllers/conversationController';
 
-const router = express.Router();
+const router = Router();
 
-// Start a new conversation
-router.post('/', ConversationController.startConversation);
+/**
+ * @route POST /api/conversations/message
+ * @desc Send a message and get Forethought response (FIXED TO USE REAL FORETHOUGHT)
+ */
+router.post('/message', ConversationController.sendMessage);
 
-// Get all conversations
-router.get('/', ConversationController.getAllConversations);
+/**
+ * @route POST /api/conversations/freeform
+ * @desc Start an autonomous freeform conversation with OpenAI customer simulation
+ */
+router.post('/freeform', ConversationController.startFreeformConversation);
 
-// Get conversation statistics
-router.get('/stats', ConversationController.getStats);
-
-// Get specific conversation
+/**
+ * @route GET /api/conversations/:sessionId
+ * @desc Get conversation details
+ */
 router.get('/:sessionId', ConversationController.getConversation);
 
-// Get conversation messages
-router.get('/:sessionId/messages', ConversationController.getConversationMessages);
+/**
+ * @route GET /api/conversations
+ * @desc Get all conversations
+ */
+router.get('/', ConversationController.getConversations);
+
+/**
+ * @route GET /api/conversations/test/forethought
+ * @desc Test Forethought connectivity and response quality
+ */
+router.get('/test/forethought', ConversationController.testForethought);
 
 export default router;
